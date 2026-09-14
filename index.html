@@ -718,16 +718,25 @@ function doPost(e) {
         }
 
         function loadSheetUrl() {
-            sheetUrl = localStorage.getItem('simedia_sheet_url') || '';
-            const urlInput = document.getElementById('sheet-api-url');
-            if (urlInput) urlInput.value = sheetUrl;
-            
-            updateSyncBadge();
-            if (sheetUrl) {
-                syncWithGoogleSheet(true);
-                startAutoSync();
-            }
-        }
+    // URL Google Apps Script Web App
+    const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwY25BB9sK0kTZohgtT4PlgJuLmKqvJG5uykdTXhCDoPTQKTcxk0AZoYyhbKFaUOyFl4w/exec';
+
+    // Gunakan URL yang tersimpan, atau gunakan URL default di atas
+    sheetUrl = localStorage.getItem('simedia_sheet_url') || DEFAULT_SHEET_URL;
+
+    const urlInput = document.getElementById('sheet-api-url');
+    if (urlInput) urlInput.value = sheetUrl;
+
+    // Simpan otomatis ke localStorage
+    localStorage.setItem('simedia_sheet_url', sheetUrl);
+
+    updateSyncBadge();
+
+    if (sheetUrl) {
+        syncWithGoogleSheet(true);
+        startAutoSync();
+    }
+}
 
         function saveSheetUrl() {
             const val = document.getElementById('sheet-api-url').value.trim();
