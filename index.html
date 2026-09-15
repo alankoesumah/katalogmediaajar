@@ -615,8 +615,8 @@ function doPost(e) {
         let currentView = 'grid';
         let sheetUrl = '';
         let confirmPendingAction = null;
-        let cloudinaryCloudName = '';
-        let cloudinaryUploadPreset = '';
+        let cloudinaryCloudName = 'wfxtt49a';
+        let cloudinaryUploadPreset = 'katalog_media';
         let autoSyncTimer = null;
         const AUTO_SYNC_INTERVAL_MS = 15000; // interval polling untuk efek realtime
 
@@ -641,17 +641,16 @@ function doPost(e) {
             updateStats();
         });
 
-        function loadCloudinaryConfig() {
-            cloudinaryCloudName = localStorage.getItem('simedia_cloud_name') || '';
-            cloudinaryUploadPreset = localStorage.getItem('simedia_upload_preset') || '';
+     function loadCloudinaryConfig() {
+    // Konfigurasi Cloudinary tetap
+    cloudinaryCloudName = 'wfxtt49a';
+    cloudinaryUploadPreset = 'katalog_media';
 
-            const cloudInput = document.getElementById('cloudinary-cloud-name');
-            const presetInput = document.getElementById('cloudinary-upload-preset');
-            if (cloudInput) cloudInput.value = cloudinaryCloudName;
-            if (presetInput) presetInput.value = cloudinaryUploadPreset;
-
-            updateCloudinaryBadge();
-        }
+    console.log('Cloudinary configured:', {
+        cloudName: cloudinaryCloudName,
+        uploadPreset: cloudinaryUploadPreset
+    });
+}
 
         function saveCloudinaryConfig() {
             cloudinaryCloudName = document.getElementById('cloudinary-cloud-name').value.trim();
