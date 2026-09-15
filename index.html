@@ -717,24 +717,74 @@ function doPost(e) {
             localStorage.setItem('simedia_data', JSON.stringify(mediaItems));
         }
 
-        function loadSheetUrl() {
-    // URL Google Apps Script Web App
-    const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwY25BB9sK0kTZohgtT4PlgJuLmKqvJG5uykdTXhCDoPTQKTcxk0AZoYyhbKFaUOyFl4w/exec';
+      const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwY25BB9sK0kTZohgtT4PlgJuLmKqvJG5uykdTXhCDoPTQKTcxk0AZoYyhbKFaUOyFl4w/exec';
 
-    // Gunakan URL yang tersimpan, atau gunakan URL default di atas
-    sheetUrl = localStorage.getItem('simedia_sheet_url') || DEFAULT_SHEET_URL;
+async function loadSheetUrl() {
+    // Gunakan URL Web App yang sudah ditentukan
+    sheetUrl = DEFAULT_SHEET_URL;
 
+    // Tampilkan URL pada kolom input
     const urlInput = document.getElementById('sheet-api-url');
-    if (urlInput) urlInput.value = sheetUrl;
+    if (urlInput) {
+        urlInput.value = sheetUrl;
+    }
 
-    // Simpan otomatis ke localStorage
+    // Simpan URL ke browser
     localStorage.setItem('simedia_sheet_url', sheetUrl);
 
-    updateSyncBadge();
+    // Coba koneksi ke Google Sheet
+    await syncWithGoogleSheet(true);
 
-    if (sheetUrl) {
-        syncWithGoogleSheet(true);
-        startAutoSync();
+    // Mulai sinkronisasi otomatis
+    startAutoSync();
+}
+
+
+async function saveSheetUrl() {
+    // URL dikunci ke Web App yang sudah ditentukan
+    sheetUrl = DEFAULT_SHEET_URL;
+
+    localStorage.setItem('simedia_sheet_url', sheetUrl);
+
+    const urlInput = document.getElementById('sheet-api-url');
+    if (urlInput) {
+        urlInput.value = sheetUrl;
+    }
+
+    await syncWithGoogleSheet();
+
+    startAutoSync();
+}
+
+
+function updateSyncBadge(connected = false) {
+    const dot = document.getElementById('sync-dot');
+    const text = document.getElementById('sync-text');
+    const badge = document.getElementById('sync-status-badge');
+
+    if (!dot || !text || !badge) return;
+
+    if (connected) {
+
+        dot.className =
+            "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+
+        text.textContent =
+            "Terhubung · Google Sheets";
+
+        badge.className =
+            "hidden sm:flex items-center space-x-2 bg-emerald-950/60 px-3 py-1.5 rounded-full text-xs border border-emerald-700/50";
+
+    } else {
+
+        dot.className =
+            "w-2.5 h-2.5 rounded-full bg-red-400";
+
+        text.textContent =
+            "Tidak Terhubung";
+
+        badge.className =
+            "hidden sm:flex items-center space-x-2 bg-red-950/60 px-3 py-1.5 rounded-full text-xs border border-red-700/50";
     }
 }
 
@@ -1296,43 +1346,140 @@ function doPost(e) {
         }
 
         async function syncWithGoogleSheet(silent = false) {
-            if (!sheetUrl) {
-                if (!silent) showToast('Masukkan URL Apps Script terlebih dahulu', 'warning');
-                return;
+
+    if (!sheetUrl) {
+        updateSyncBadge(false);
+
+        if (!silent) {
+            showToast(
+                'URL Google Apps Script belum tersedia',
+                'warning'
+            );
+        }
+
+        return;
+    }
+
+    if (!silent) {
+        showToast(
+            'Sinkronisasi data dari Google Sheet...',
+            'info'
+        );
+    }
+
+    try {
+
+        const response = await fetch(sheetUrl, {
+            method: 'GET',
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                'HTTP Error: ' + response.status
+            );
+        }
+
+        const data = await response.json();
+
+        if (!Array.isArray(data)) {
+            throw new Error(
+                'Format data Google Sheet tidak valid'
+            );
+        }
+
+        // Google Sheet berhasil diakses
+        updateSyncBadge(true);
+
+        if (data.length > 0) {
+
+            mediaItems = data.map((row, idx) => ({
+
+                id: row.id ||
+                    `MED-${100 + idx}`,
+
+                nama_media:
+                    row.nama_media ||
+                    row['nama Media'] ||
+                    row['Nama Media'] ||
+                    'Media Pembelajaran',
+
+                foto:
+                    row.foto ||
+                    row['Foto'] ||
+                    '',
+
+                lokasi_penyimpanan:
+                    row.lokasi_penyimpanan ||
+                    row['lokasi penyimpanan'] ||
+                    row['Lokasi Penyimpanan'] ||
+                    'Gudang Utama',
+
+                jumlah:
+                    parseInt(
+                        row.jumlah ||
+                        row['Jumlah']
+                    ) || 1,
+
+                status:
+                    row.status ||
+                    row['Status'] ||
+                    'Tersedia',
+
+                peminjam:
+                    row.peminjam ||
+                    row['Peminjam'] ||
+                    '',
+
+                tgl_pinjam:
+                    row.tgl_pinjam ||
+                    row['Tanggal Pinjam'] ||
+                    ''
+            }));
+
+            // Simpan salinan lokal
+            saveLocalData();
+
+            // Perbarui tampilan aplikasi
+            populateFilters();
+            filterMedia();
+            updateStats();
+
+            if (!silent) {
+                showToast(
+                    'Berhasil sinkron dengan Google Sheet!',
+                    'success'
+                );
             }
 
-            if (!silent) showToast('Sinkronisasi data dari Google Sheet...', 'info');
+        } else {
 
-            try {
-                const response = await fetch(sheetUrl);
-                const data = await response.json();
-
-                if (Array.isArray(data) && data.length > 0) {
-                    mediaItems = data.map((row, idx) => ({
-                        id: row.id || `MED-${100 + idx}`,
-                        nama_media: row.nama_media || row['nama Media'] || row['Nama Media'] || 'Media Pembelajaran',
-                        foto: row.foto || row['Foto'] || '',
-                        lokasi_penyimpanan: row.lokasi_penyimpanan || row['lokasi penyimpanan'] || row['Lokasi Penyimpanan'] || 'Gudang Utama',
-                        jumlah: parseInt(row.jumlah || row['Jumlah']) || 1,
-                        status: row.status || row['Status'] || 'Tersedia',
-                        peminjam: row.peminjam || row['Peminjam'] || '',
-                        tgl_pinjam: row.tgl_pinjam || row['Tanggal Pinjam'] || ''
-                    }));
-
-                    saveLocalData();
-                    populateFilters();
-                    filterMedia();
-                    updateStats();
-                    if (!silent) showToast('Berhasil sinkron dengan Google Sheet!', 'success');
-                } else if (!silent) {
-                    showToast('Google Sheet belum memiliki data. Melakukan penulisan awal...', 'info');
-                    syncPushToSheet();
-                }
-            } catch (err) {
-                console.error('Sheet sync error:', err);
-                if (!silent) showToast('Gagal terhubung dengan Google Sheet. Periksa izin Web App.', 'error');
+            // Sheet kosong
+            if (!silent) {
+                showToast(
+                    'Google Sheet belum memiliki data.',
+                    'warning'
+                );
             }
         }
+
+    } catch (err) {
+
+        console.error(
+            'Sheet sync error:',
+            err
+        );
+
+        updateSyncBadge(false);
+
+        if (!silent) {
+            showToast(
+                'Gagal terhubung dengan Google Sheet.',
+                'error'
+            );
+        }
+    }
+}
 
         async function syncPushToSheet() {
             if (!sheetUrl) return;
